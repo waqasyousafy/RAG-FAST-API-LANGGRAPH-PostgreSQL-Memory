@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-ollama
+langchain-postgres
+langgraph
+psycopg[binary]
+python-dotenv
+pydantic
+langgraph-checkpoint-postgres
+langchain-groq
+sentence-transformers
+pypdf
+watchdog
