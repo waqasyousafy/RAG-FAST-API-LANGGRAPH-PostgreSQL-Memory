@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from models import AgentQueryRequest, AgentQueryResponse
 from services.auth_service import get_current_user
 from services.agent_service import run_agent_workflow
+from services.agent_service import get_agent_executor
+from database import get_db_connection
 
 router = APIRouter(prefix="/api", tags=["Agent RAG"])
 
@@ -12,17 +14,6 @@ async def chat_with_agent(payload: AgentQueryRequest, user_id: str = Depends(get
         return {"response": response_text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-import pickle
-from fastapi import APIRouter, Depends, HTTPException
-from database import get_db_connection  
-from services.agent_service import get_agent_executor
-
-from fastapi import APIRouter, HTTPException
-from database import get_db_connection
-from services.agent_service import get_agent_executor
-
-router = APIRouter(prefix="/api", tags=["Agent RAG"])
 
 @router.get("/chats/history/{user_id}")
 def get_user_history_by_metadata(user_id: str):

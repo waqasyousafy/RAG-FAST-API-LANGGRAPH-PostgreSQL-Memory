@@ -14,7 +14,6 @@ from langchain_text_splitters import CharacterTextSplitter
 from langchain_core.documents import Document
 load_dotenv()
 from pathlib import Path
-
 groqapikey=os.getenv("GROQ_API_KEY")
 
 
@@ -88,6 +87,8 @@ def search_documents(query: str) -> str:
 
 from database import get_db_connection
 from langgraph.checkpoint.postgres import PostgresSaver
+from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 def get_agent_executor():
     global _agent_executor, _checkpointer
@@ -99,7 +100,17 @@ def get_agent_executor():
             api_key=groqapikey,
             temperature=0.1
         )
-        
+        # Define Johnson's system message instructions
+        system_instruction = SystemMessage(
+            content=(
+                "You are Johnson, a helpful support desk and front-desk employee for our e-commerce store. "
+                "Your duty is to assist customers strictly using the provided catalog data, order history tools, "
+                "and internal feed data. "
+                "CRITICAL RULE: If a user asks questions completely outside the provided feed data, store inventory, "
+                "or order context, you must politely decline to answer and remind them that you can only assist with store-related inquiries. "
+                "Never make up information or answer outside your designated support role."
+            )
+        )
         tools = [search_documents]
         
         # 1. Get database connection
@@ -115,7 +126,8 @@ def get_agent_executor():
         _agent_executor = create_react_agent(
             model=llm,
             tools=tools,
-            checkpointer=_checkpointer
+            checkpointer=_checkpointer,
+            state_modifier=system_instruction
         )
         print("Agent executor ready.")
     return _agent_executor
