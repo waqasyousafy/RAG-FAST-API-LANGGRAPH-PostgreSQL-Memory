@@ -136,7 +136,10 @@ def get_agent_executor():
 def run_agent_workflow(query: str, user_id: str, thread_id: str) -> str:
     agent = get_agent_executor()
     # Composite configuration namespace mapping user and thread contexts safely
-    config = {"configurable": {"thread_id": f"user_{user_id}_thread_{thread_id}"}}
+    config = {
+        "configurable": {"thread_id": f"user_{user_id}_thread_{thread_id}"},
+        "metadata": {"user_id": user_id},
+    }
     
     input_message = {"messages": [("user", query)]}
     output = agent.invoke(input_message, config=config)
