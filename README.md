@@ -84,6 +84,38 @@ The service starts on `http://localhost:8000`.
 
 On startup, the application initializes the embedding model and vector store, starts the document watcher, and prepares the LangGraph agent. The first startup can take longer while models are downloaded.
 
+## Production request flow
+
+Chat requests pass through the same layered pipeline used by the agent service:
+
+```mermaid
+flowchart TD
+  A[Client request] --> B[Rate limiter]
+  B --> C[Security pipeline]
+  C --> D[Redis response cache]
+  D --> E[LangGraph ReAct agent]
+  E --> F[Primary Groq model]
+  F -->|retry or failure| G[Fallback model]
+  E --> H[Output validator]
+  G --> H
+  H --> I[Metrics and JSON logging]
+  I --> J[JSON response]
+```
+
+The layers are implemented as follows:
+
+| Layer | Responsibility | Implementation |
+| --- | --- | --- |
+| Rate limiter | Limits each user's request rate before model work begins | `rate_limiter.py` |
+| Security pipeline | Blocks prompt injection, masks input PII, and validates output | `security.py` |
+| Cache | Returns repeated answers without another model call | `cache.py` |
+| Agent and fallback | Retrieves documents, runs the ReAct graph, and retries with a fallback model | `services/agent_service.py` |
+| Output validator | Masks leaked PII and blocks configured harmful output patterns | `security.py` |
+| Metrics and logging | Tracks latency, errors, tokens, cache behavior, and structured logs | `monitoring.py` |
+| JSON response | Returns the validated answer through the FastAPI response model | `models.py` and `routers/aagent_router.py` |
+
+The cache is checked after input sanitization, and only the final security-checked answer is cached. This prevents unsafe input from becoming a cache key and prevents unvalidated model output from being served later.
+
 ## API
 
 All routes use the `/api` prefix.
