@@ -11,6 +11,8 @@ python-dotenv
 pydantic
 langgraph-checkpoint-postgres
 langchain-groq
+langchain-deepseek
 sentence-transformers
 pypdf
 watchdog
+redis

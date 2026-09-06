@@ -1,318 +1,191 @@
 # ReAct Agent with pgvector
 
-A FastAPI-based intelligent agent powered by LangGraph that performs Retrieval-Augmented Generation (RAG) over ingested documents using PostgreSQL with pgvector embeddings.
+A FastAPI service that answers questions over local PDF and text documents. It combines LangGraph, a Groq chat model, Hugging Face embeddings, PostgreSQL/pgvector, and persistent conversation checkpoints.
 
-## Overview
+## What it does
 
-This project implements a ReAct (Reasoning + Acting) agent that can:
-- Search through ingested technical manuals, PDFs, and text files
-- Reason about queries using LLM capabilities
-- Maintain conversation history with PostgreSQL checkpointing
-- Authenticate users and manage sessions
-- Automatically detect and index new documents in a watched directory
-
-## Features
-
-✨ **AI-Powered RAG**: Search and reason over document collections using semantic embeddings
-🔐 **Authentication**: User registration and login with secure password handling
-📚 **Multi-Format Support**: Load and process PDF files, text files, and documents
-🔄 **Document Watcher**: Automatically detects and indexes new files added to the document directory
-💾 **Persistent State**: PostgreSQL-based conversation checkpointing for stateful agent execution
-🚀 **Fast Inference**: Uses Groq's fast LLM API for quick responses
-
-## Prerequisites
-
-- Python 3.13+
-- PostgreSQL 12+ with pgvector extension
-- Groq API key ([get one here](https://console.groq.com))
-- Git
-
-## Project Structure
-
-```
-.
-├── main.py                      # FastAPI application entry point
-├── config.py                    # Configuration and environment variables
-├── database.py                  # PostgreSQL connection management
-├── models.py                    # Pydantic models for requests/responses
-├── DocumentChangeHandler.py     # File watcher for document directory
-├── requirements.txt             # Python dependencies
-├── pyproject.toml              # Project configuration
-├── routers/
-│   ├── auth_router.py          # Authentication endpoints
-│   └── aagent_router.py        # Agent chat endpoints
-└── services/
-    ├── agent_service.py        # Agent initialization and execution
-    └── auth_service.py         # User authentication logic
-```
-
-## Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd reactagent_with_pgvector
-   ```
-
-2. **Create and activate virtual environment**
-   ```bash
-   python -m venv .venv
-   
-   # On Windows (PowerShell)
-   .\.venv\Scripts\Activate.ps1
-   
-   # On macOS/Linux
-   source .venv/bin/activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-   
-   Or with uv:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-4. **Set up PostgreSQL with pgvector**
-   ```bash
-   # Install pgvector extension
-   CREATE EXTENSION IF NOT EXISTS vector;
-   
-   # Create database
-   createdb vectordb
-   ```
-
-5. **Configure environment variables**
-   
-   Create a `.env` file in the root directory:
-   ```env
-   # LLM Configuration
-   LLM=llama-3.1-8b-instant
-   GROQ_API_KEY=your_groq_api_key_here
-   
-   # Database
-   DATABASE_URL=postgresql+psycopg://postgres:mysecretpassword@localhost:5432/vectordb
-   
-   # Document Directory
-   DIRECTORY=G:\datato_ingestion
-   ```
-
-## Running the Application
-
-1. **Start the server**
-   ```bash
-   uvicorn main:app --reload
-   ```
-   
-   The API will be available at `http://localhost:8000`
-
-2. **API Documentation**
-   - Swagger UI: `http://localhost:8000/docs`
-   - ReDoc: `http://localhost:8000/redoc`
-
-## API Endpoints
-
-### Authentication
-
-- **POST** `/auth/register` - Register a new user
-  ```json
-  {
-    "username": "user@example.com",
-    "password": "securepassword"
-  }
-  ```
-
-- **POST** `/auth/login` - Login and get authentication token
-  ```json
-  {
-    "username": "user@example.com",
-    "password": "securepassword"
-  }
-  ```
-
-### Agent Chat
-
-- **POST** `/api/chat` - Query the agent (requires authentication)
-  ```json
-  {
-    "query": "What does the documentation say about feature X?",
-    "thread_id": "unique_conversation_id"
-  }
-  ```
-  Response:
-  ```json
-  {
-    "response": "Based on the documentation, feature X..."
-  }
-  ```
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LLM` | `llama-3.1-8b-instant` | Groq LLM model name |
-| `GROQ_API_KEY` | Required | Your Groq API key |
-| `DATABASE_URL` | `postgresql+psycopg://postgres:mysecretpassword@localhost:5432/vectordb` | PostgreSQL connection string |
-| `DIRECTORY` | `G:\datato_ingestion` | Path to document directory for ingestion |
-
-### Application Settings
-
-- **Model**: Configured via `config.py`
-- **Vector Store**: pgvector in PostgreSQL
-- **Embedding Model**: `all-MiniLM-L6-v2` (from HuggingFace)
-- **Collection Name**: `rag_agent_documents`
-- **Chunk Size**: 1000 tokens with 0 overlap
-- **RAG Search Results**: Top 3 documents with marginal relevance
-
-## Document Ingestion
-
-The application automatically monitors the `DIRECTORY` path for new documents:
-
-1. **Place documents** in the configured `DIRECTORY` path
-2. **Supported formats**: `.txt` and `.pdf` files
-3. **Automatic indexing**: DocumentChangeHandler watches for file additions and updates the vector store
-4. **Chunking**: Documents are split into 1000-token chunks for optimal retrieval
-
-### Adding Documents Manually
-
-Place PDF or TXT files in your `DIRECTORY` path:
-```
-G:\datato_ingestion\
-├── manual1.pdf
-├── guide.txt
-└── documentation.pdf
-```
-
-On next initialization, these documents will be loaded and indexed.
-
-## Architecture
-
-### Agent Flow
-
-```
-User Query
-    ↓
-Authentication
-    ↓
-LangGraph ReAct Agent
-    ├─→ search_documents tool
-    │   ├─→ Vector Store Query
-    │   └─→ Similarity Search
-    └─→ LLM Reasoning
-    ↓
-Response
-```
-
-### Database Schema
-
-- **users**: User accounts and authentication
-- **langchain_pg_collection**: Vector store collections
-- **langchain_pg_embedding**: Document embeddings and metadata
-- **checkpoints**: Agent conversation state (managed by langgraph)
-
-## Development
-
-### Key Components
-
-#### `agent_service.py`
-- `initialize_vector_store()`: Loads documents and creates embeddings
-- `search_documents()`: LangChain tool for semantic search
-- `get_agent_executor()`: Creates and configures the ReAct agent
-- `run_agent_workflow()`: Executes agent for user queries
-
-#### `auth_service.py`
-- User registration and authentication
-- Password hashing and verification
-- JWT token generation and validation
-
-#### `DocumentChangeHandler.py`
-- File system watcher for new documents
-- Automatic vector store updates
+- Ingests `.pdf` and `.txt` files from a watched directory.
+- Stores document embeddings in PostgreSQL with pgvector.
+- Retrieves and reranks relevant chunks before the agent answers.
+- Preserves conversations by `thread_id` with LangGraph checkpoints.
+- Applies response caching, rate limiting, and input checks.
+- Exposes interactive API documentation through FastAPI.
 
 ## Requirements
 
-See [requirements.txt](requirements.txt) for the complete list. Key dependencies:
+- Python 3.13 or newer
+- PostgreSQL with the `pgvector` extension
+- Redis, used by the response cache and rate limiter
+- A Groq API key
+- A folder containing the documents to index
 
-- **fastapi**: Web framework
-- **langgraph**: Agent orchestration
-- **langchain**: LLM framework
-- **langchain-postgres**: Vector store
-- **langchain-groq**: Groq LLM integration
-- **psycopg**: PostgreSQL driver
-- **sentence-transformers**: Embedding generation
-- **watchdog**: File system monitoring
+## Setup
+
+### 1. Install dependencies
+
+Using `pip`:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+```
+
+Using `uv`:
+
+```powershell
+uv sync
+```
+
+### 2. Prepare PostgreSQL
+
+Create a database and enable pgvector:
+
+```sql
+CREATE DATABASE vectordb;
+\c vectordb
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+The application creates the `users` table and LangGraph checkpoint tables during startup. The vector store uses the `rag_agent_documents` collection.
+
+### 3. Start Redis
+
+Run Redis locally on its default port, or set `REDIS_URL` to another Redis instance:
+
+```text
+redis://localhost:6379/0
+```
+
+### 4. Configure the environment
+
+Create a `.env` file in the project root:
+
+```env
+GROQ_API_KEY=your_groq_api_key
+LLM=llama-3.1-8b-instant
+DATABASE_URL=postgresql+psycopg://postgres:password@localhost:5432/vectordb
+DIRECTORY=C:\path\to\documents
+REDIS_URL=redis://localhost:6379/0
+```
+
+Optional settings include `GROQ_API_FALLBACK`, `fallback_llm`, `LANGCHAIN_API_KEY`, and `LANGCHAIN_PROJECT`.
+
+## Run the API
+
+```powershell
+uvicorn main:app --reload
+```
+
+The service starts on `http://localhost:8000`.
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+On startup, the application initializes the embedding model and vector store, starts the document watcher, and prepares the LangGraph agent. The first startup can take longer while models are downloaded.
+
+## API
+
+All routes use the `/api` prefix.
+
+### Login
+
+`POST /api/login`
+
+```json
+{
+  "username": "user@example.com",
+  "password": "your-password"
+}
+```
+
+The response contains the numeric `user_id`. There is currently no registration endpoint; users must be provisioned in the `users` table before logging in.
+
+### Chat
+
+`POST /api/chat`
+
+Required header:
+
+```text
+X-User-Id: 1
+```
+
+Request body:
+
+```json
+{
+  "query": "What does the documentation say about feature X?",
+  "thread_id": "user-1-conversation-1"
+}
+```
+
+Example with PowerShell:
+
+```powershell
+$headers = @{ "X-User-Id" = "1" }
+$body = @{ query = "Summarize the installation requirements"; thread_id = "user-1-main" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/chat -Headers $headers -ContentType "application/json" -Body $body
+```
+
+### Conversation history
+
+`GET /api/chats/history/{user_id}`
+
+Returns the saved threads and messages associated with a user. This endpoint currently accepts the user ID in the URL and does not require the `X-User-Id` header.
+
+## Document ingestion
+
+Put PDF or UTF-8 text files in the directory configured by `DIRECTORY`:
+
+```text
+documents/
+├── handbook.pdf
+├── setup.txt
+└── reference.pdf
+```
+
+Files are loaded at startup and new or modified files are indexed by the watchdog observer. Documents are split into chunks, embedded with `all-MiniLM-L6-v2`, stored in pgvector, and searched with maximal marginal relevance before cross-encoder reranking.
+
+If the directory is missing or empty, the service creates it and indexes a placeholder document. For reliable re-indexing after changing the collection or ingestion code, clear the existing vector collection before restarting.
+
+## Project layout
+
+```text
+.
+├── main.py                    # FastAPI app and startup lifecycle
+├── config.py                  # Environment-backed configuration
+├── database.py                # PostgreSQL connection helper
+├── models.py                  # Request and response models
+├── DocumentChangeHandler.py   # PDF/TXT file watcher
+├── routers/
+│   ├── auth_router.py         # Login route
+│   └── aagent_router.py       # Chat and history routes
+├── services/
+│   ├── agent_service.py       # Ingestion, retrieval, and agent workflow
+│   └── auth_service.py        # User lookup and request authentication
+├── requirements.txt
+└── pyproject.toml
+```
 
 ## Troubleshooting
 
-### Vector Store Initialization Fails
-- Ensure PostgreSQL is running and pgvector extension is installed
-- Verify `DATABASE_URL` in `.env` file
-- Check document directory exists and has readable permissions
+**Startup cannot connect to PostgreSQL**
 
-### No Documents Found
-- Verify documents are in the configured `DIRECTORY` path
-- Check file formats are `.txt` or `.pdf`
-- Look at application logs for file loading errors
-- Restart the application to trigger re-indexing
+Check that PostgreSQL is running, `DATABASE_URL` is valid, and the `vector` extension is installed.
 
-### Authentication Errors
-- Ensure users table is created (happens automatically on startup)
-- Verify credentials are correct
-- Check JWT token hasn't expired
+**Startup cannot connect to Redis**
 
-## Deployment
+Start Redis or point `REDIS_URL` at a reachable instance.
 
-### Docker (Optional)
+**No useful answers are returned**
 
-```dockerfile
-FROM python:3.13-slim
-WORKDIR /app
-COPY . .
-RUN pip install -r requirements.txt
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
-```
+Confirm that `DIRECTORY` contains readable `.pdf` or `.txt` files. Check the startup logs for loader errors and allow time for the embedding and reranker models to download.
 
-Build and run:
-```bash
-docker build -t reactagent-pgvector .
-docker run -p 8000:8000 --env-file .env reactagent-pgvector
-```
+**Login fails**
 
-## Performance Optimization
-
-- **Caching**: Agent executor is cached globally to avoid re-initialization
-- **Embeddings**: HuggingFace CPU embeddings; consider GPU for high throughput
-- **Database**: Ensure PostgreSQL has sufficient resources for large document collections
-- **Chunking**: Adjust chunk size in `agent_service.py` for your use case
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Submit a pull request
+Confirm that the `users` table contains the requested username. The current authentication service compares the SHA-256 hash of the supplied password with `password_hash`.
 
 ## License
 
-[Specify your license here]
-
-## Authors
-
-- **waqasyousafy** - Initial development
-
-## Support
-
-For issues, questions, or suggestions, please open an issue on the repository.
-
-## Changelog
-
-### v0.1.0
-- Initial release
-- ReAct agent with document RAG
-- User authentication
-- PostgreSQL + pgvector integration
-- Document watcher
+No license has been specified yet.

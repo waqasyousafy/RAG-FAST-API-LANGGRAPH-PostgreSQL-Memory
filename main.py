@@ -10,9 +10,11 @@ from database import get_db_connection  # Import your raw connection function
 from services.agent_service import initialize_vector_store, get_agent_executor
 from routers import auth_router, aagent_router
 from DocumentChangeHandler import start_file_watcher  # assuming you saved it in a utils folder
-
+from config import get_settings  # Import the get_settings function from your config module
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
+    setting=get_settings()
     # Create the users table using your raw psycopg connection
     with get_db_connection() as conn:
         with conn.cursor() as cur:

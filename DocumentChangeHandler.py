@@ -4,7 +4,7 @@ from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from langchain_community.document_loaders import TextLoader, PyPDFLoader
-from langchain_text_splitters import CharacterTextSplitter
+from langchain_text_splitters import CharacterTextSplitter,RecursiveCharacterTextSplitter
 import os
 
 class DocumentChangeHandler(FileSystemEventHandler):
@@ -42,7 +42,7 @@ class DocumentChangeHandler(FileSystemEventHandler):
                 documents = loader.load()
                 
             if documents:
-                text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+                text_splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=50)
                 split_docs = text_splitter.split_documents(documents)
                 
                 # Optional: If you want to replace old chunks for this file, 
