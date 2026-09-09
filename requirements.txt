@@ -16,3 +16,5 @@ sentence-transformers
 pypdf
 watchdog
 redis
+fastmcp
+langchain-mcp-adapters

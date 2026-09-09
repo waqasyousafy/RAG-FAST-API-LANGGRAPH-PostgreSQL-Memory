@@ -1,0 +1,42 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: mcp_service/Dockerfile
+    environment:
+      DB_CONNECTION: postgresql://postgres:postgres@host.docker.internal:5432/ragdb
+      DIRECTORY: /app/data
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "8001:8001"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      REDIS_URL: redis://redis:6379/0
+      MCP_SERVER_URL: http://mcp-server:8001/mcp
+      DB_CONNECTION: postgresql://postgres:postgres@host.docker.internal:5432/ragdb
+    depends_on:
+      redis:
+        condition: service_healthy
+      mcp-server:
+        condition: service_started
+    ports:
+      - "8000:8000"

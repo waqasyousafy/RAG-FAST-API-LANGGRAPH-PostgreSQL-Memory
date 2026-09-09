@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.git/
+.gitignore
+.env
+uv.lock
+mcpservice/
+node_modules/
+*.log
+data/
