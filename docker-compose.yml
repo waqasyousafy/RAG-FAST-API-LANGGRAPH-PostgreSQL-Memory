@@ -14,8 +14,9 @@ services:
       context: .
       dockerfile: mcp_service/Dockerfile
     environment:
-      DB_CONNECTION: postgresql://postgres:postgres@host.docker.internal:5432/ragdb
+      DATABASE_URL: postgresql+psycopg://postgres:mysecretpassword@host.docker.internal:5432/vectordb
       DIRECTORY: /app/data
+      REDIS_URL: redis://redis:6379/0
     volumes:
       - ./data:/app/data
     depends_on:
@@ -23,6 +24,12 @@ services:
         condition: service_healthy
     ports:
       - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8001), timeout=5)"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   api:
     build:
@@ -30,13 +37,15 @@ services:
       dockerfile: Dockerfile
     environment:
       GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_API_FALLBACK: ${GROQ_API_FALLBACK}
+      LANGCHAIN_API_KEY: ${LANGSMITH_API_KEY}
+      DATABASE_URL: postgresql+psycopg://postgres:mysecretpassword@host.docker.internal:5432/vectordb
       REDIS_URL: redis://redis:6379/0
       MCP_SERVER_URL: http://mcp-server:8001/mcp
-      DB_CONNECTION: postgresql://postgres:postgres@host.docker.internal:5432/ragdb
     depends_on:
       redis:
         condition: service_healthy
       mcp-server:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "8000:8000"

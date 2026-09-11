@@ -5,7 +5,7 @@ Run this as its own long-lived process, separate from the agent/API.
 
 from fastmcp import FastMCP
 from .retrieval import search_documents_raw
-from DocumentChangeHandler import start_file_watcher
+from .file_watcher import start_file_watcher
 
 mcp = FastMCP("rag-knowledge-server")
 
